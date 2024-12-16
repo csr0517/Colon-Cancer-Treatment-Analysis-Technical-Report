@@ -1,7 +1,7 @@
 # Colon Cancer Treatment Analysis Technical Report
 
 ## Overview
-This repository contains a technical analysis of stage III colon cancer treatment outcomes, analyzing the effectiveness of different adjuvant therapy approaches. The study compares three treatment groups: observation only (control), levamisole alone, and fluorouracil plus levamisole combination therapy.
+This repository contains a technical analysis of stage III colon cancer treatment outcomes, analyzing the effectiveness of different adjuvant therapy approaches. The study compares three treatment groups: observation only (control), levamisole alone, and fluorouracil plus levamisole combination therapy. The purpose for this analysis is to select a best model for colon dataset.
 
 ## Dataset
 The analysis utilizes the 'colon' dataset from the R survival package, which includes:
@@ -41,7 +41,7 @@ The Full model (adjusted Cox with stratification) was selected as optimal due to
 
 ## Code and Reproducibility
 - Analysis conducted using R
-- Code available in '713fp' file
+- Code available in 'colon' file
 - Includes all numerical results and plots
 - Full statistical methodology documented in technical report
 
