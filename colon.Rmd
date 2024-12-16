@@ -1,0 +1,742 @@
+---
+title: "colondata"
+output: html_document
+date: "2024-11-26"
+---
+
+```{r}
+library(survival)
+
+colon <- survival::colon
+colnames(colon)
+```
+
+Data Preparation
+
+```{r}
+library(dplyr)
+
+# Filter death
+colon <- as_tibble(colon)
+colondeath <- filter(colon, etype==2)
+head(colondeath)
+
+```
+
+```{r}
+
+library(tidyr)
+
+# Replace node
+colondeath <- colondeath %>%
+  mutate(nodes = ifelse(nodes == 0, 1, nodes))
+
+# Remove missing
+colondeath <- colondeath %>%
+  drop_na(age, sex, nodes, differ, extent, surg, node4, obstruct, perfor, adhere, rx)
+
+head(colondeath)
+
+```
+
+
+```{r}
+
+library(dplyr)
+
+summary_table <- colondeath %>%
+  group_by(rx) %>%
+  summarize(
+    Male_n = sum(sex == 1, na.rm = TRUE),
+    Male_Percent = round(mean(sex == 1, na.rm = TRUE) * 100, 2),
+    Female_n = sum(sex == 0, na.rm = TRUE),
+    Female_Percent = round(mean(sex == 0, na.rm = TRUE) * 100, 2),
+    Age_Mean_SD = paste0(round(mean(age, na.rm = TRUE), 2), " (", round(sd(age, na.rm = TRUE), 2), ")"),
+    Obstruct_Yes_Percent = round(mean(obstruct == 1, na.rm = TRUE) * 100, 2),
+    Perfor_Yes_Percent = round(mean(perfor == 1, na.rm = TRUE) * 100, 2),
+    Adhere_Yes_Percent = round(mean(adhere == 1, na.rm = TRUE) * 100, 2),
+    Nodes_Mean_SD = paste0(round(mean(nodes, na.rm = TRUE), 2), " (", round(sd(nodes, na.rm = TRUE), 2), ")"),
+    Time_Mean_SD = paste0(round(mean(time, na.rm = TRUE), 2), " (", round(sd(time, na.rm = TRUE), 2), ")"),
+    Differ_Well_Percent = round(mean(differ == 1, na.rm = TRUE) * 100, 2),
+    Differ_Moderate_Percent = round(mean(differ == 2, na.rm = TRUE) * 100, 2),
+    Differ_Poor_Percent = round(mean(differ == 3, na.rm = TRUE) * 100, 2),
+    Extent_Submucosa_Percent = round(mean(extent == 1, na.rm = TRUE) * 100, 2),
+    Extent_Muscle_Percent = round(mean(extent == 2, na.rm = TRUE) * 100, 2),
+    Extent_Serosa_Percent = round(mean(extent == 3, na.rm = TRUE) * 100, 2),
+    Extent_Contiguous_Percent = round(mean(extent == 4, na.rm = TRUE) * 100, 2),
+    Surg_Short_Percent = round(mean(surg == 0, na.rm = TRUE) * 100, 2),
+    Surg_Long_Percent = round(mean(surg == 1, na.rm = TRUE) * 100, 2),
+    Node4_Yes_Percent = round(mean(node4 == 1, na.rm = TRUE) * 100, 2)
+  ) %>%
+  ungroup()
+
+# Display the summary table
+print(summary_table)
+
+```
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+
+# Convert all variables 
+summary_table_fixed <- summary_table %>%
+  mutate(across(-rx, as.character))
+
+final_table <- summary_table_fixed %>%
+  pivot_longer(cols = -rx, names_to = "Variable", values_to = "Value") %>%
+  pivot_wider(names_from = rx, values_from = Value)
+
+print(final_table)
+
+
+```
+
+
+Kaplan-Meier Survival Analysis
+
+```{r}
+
+library(survival)
+library(survminer)
+library(ggplot2)
+
+surv_obj <- Surv(time = colondeath$time, event = colondeath$status)
+
+# KM plot for rx
+fit_rx <- survfit(surv_obj ~ rx, data = colondeath)
+km_rx <- ggsurvplot(fit_rx,
+                    data = colondeath,
+                    pval = TRUE,
+                    risk.table = TRUE,
+                    risk.table.height = 0.25,
+                    title = "Kaplan-Meier Curves by Treatment",
+                    xlab = "Time (days)",
+                    ylab = "Survival probability",
+                    conf.int = TRUE,
+                    legend.title = "Treatment",
+                    ggtheme = theme_bw())
+
+# KM plot for sex
+fit_sex <- survfit(surv_obj ~ sex, data = colondeath)
+km_sex <- ggsurvplot(fit_sex,
+                     data = colondeath,
+                     pval = TRUE,
+                     risk.table = TRUE,
+                     risk.table.height = 0.25,
+                     title = "Kaplan-Meier Curves by Sex",
+                     xlab = "Time (days)",
+                     ylab = "Survival probability",
+                     conf.int = TRUE,
+                     legend.title = "Sex",
+                     ggtheme = theme_bw())
+
+# KM plot for diff
+fit_differ <- survfit(surv_obj ~ differ, data = colondeath)
+km_differ <- ggsurvplot(fit_differ,
+                        data = colondeath,
+                        pval = TRUE,
+                        risk.table = TRUE,
+                        risk.table.height = 0.25,
+                        title = "Kaplan-Meier Curves by Tumor Differentiation",
+                        xlab = "Time (days)",
+                        ylab = "Survival probability",
+                        conf.int = TRUE,
+                        legend.title = "Differentiation",
+                        ggtheme = theme_bw())
+
+# KM plot for extent
+fit_extent <- survfit(surv_obj ~ extent, data = colondeath)
+km_extent <- ggsurvplot(fit_extent,
+                        data = colondeath,
+                        pval = TRUE,
+                        risk.table = TRUE,
+                        risk.table.height = 0.25,
+                        title = "Kaplan-Meier Curves by Extent",
+                        xlab = "Time (days)",
+                        ylab = "Survival probability",
+                        conf.int = TRUE,
+                        legend.title = "Extent",
+                        ggtheme = theme_bw())
+
+# KM plot for node4
+fit_node4 <- survfit(surv_obj ~ node4, data = colondeath)
+km_node4 <- ggsurvplot(fit_node4,
+                       data = colondeath,
+                       pval = TRUE,
+                       risk.table = TRUE,
+                       risk.table.height = 0.25,
+                       title = "Kaplan-Meier Curves by Lymph Node Status",
+                       xlab = "Time (days)",
+                       ylab = "Survival probability",
+                       conf.int = TRUE,
+                       legend.title = "Node4",
+                       ggtheme = theme_bw())
+
+print(km_rx)
+print(km_sex)
+print(km_differ)
+print(km_extent)
+print(km_node4)
+
+```
+
+Log-rank Tests
+
+```{r}
+
+library(survival)
+library(survminer)
+library(ggplot2)
+
+surv_obj <- Surv(time = colondeath$time, event = colondeath$status)
+
+# Log-rank tests rx
+lr_rx <- survdiff(surv_obj ~ rx, data = colondeath)
+print("Log-rank test results for Treatment groups:")
+print(lr_rx)
+cat("\nP-value:", 1 - pchisq(lr_rx$chisq, df = length(lr_rx$n) - 1), "\n\n")
+
+# Sex
+lr_sex <- survdiff(surv_obj ~ sex, data = colondeath)
+print("Log-rank test results for Sex:")
+print(lr_sex)
+cat("\nP-value:", 1 - pchisq(lr_sex$chisq, df = length(lr_sex$n) - 1), "\n\n")
+
+# Differentiation
+lr_differ <- survdiff(surv_obj ~ differ, data = colondeath)
+print("Log-rank test results for Tumor Differentiation:")
+print(lr_differ)
+cat("\nP-value:", 1 - pchisq(lr_differ$chisq, df = length(lr_differ$n) - 1), "\n\n")
+
+# Extent 
+lr_extent <- survdiff(surv_obj ~ extent, data = colondeath)
+print("Log-rank test results for Extent of Spread:")
+print(lr_extent)
+cat("\nP-value:", 1 - pchisq(lr_extent$chisq, df = length(lr_extent$n) - 1), "\n\n")
+
+# node4
+lr_node4 <- survdiff(surv_obj ~ node4, data = colondeath)
+print("Log-rank test results for Lymph Node Status:")
+print(lr_node4)
+cat("\nP-value:", 1 - pchisq(lr_node4$chisq, df = length(lr_node4$n) - 1), "\n\n")
+
+log_rank_summary <- data.frame(
+  Variable = c("Treatment (rx)", "Sex", "Differentiation", "Extent", "Node4"),
+  Chi_Square = c(lr_rx$chisq, lr_sex$chisq, lr_differ$chisq, lr_extent$chisq, lr_node4$chisq),
+  Degrees_of_Freedom = c(length(lr_rx$n) - 1, 
+                        length(lr_sex$n) - 1,
+                        length(lr_differ$n) - 1,
+                        length(lr_extent$n) - 1,
+                        length(lr_node4$n) - 1),
+  P_Value = c(1 - pchisq(lr_rx$chisq, df = length(lr_rx$n) - 1),
+              1 - pchisq(lr_sex$chisq, df = length(lr_sex$n) - 1),
+              1 - pchisq(lr_differ$chisq, df = length(lr_differ$n) - 1),
+              1 - pchisq(lr_extent$chisq, df = length(lr_extent$n) - 1),
+              1 - pchisq(lr_node4$chisq, df = length(lr_node4$n) - 1))
+)
+
+# P-values 
+log_rank_summary$P_Value <- format.pval(log_rank_summary$P_Value, digits = 4)
+
+print(log_rank_summary)
+```
+
+
+Unadjusted Cox Proportional Hazards Model
+
+```{r}
+
+library(survival)
+
+# unadjusted Cox model for treatment
+cox_treatment <- coxph(Surv(time, status) ~ rx, data = colondeath)
+summary(cox_treatment)
+
+# hazard ratios and confidence intervals
+cox_hr <- exp(cbind(coef(cox_treatment), confint(cox_treatment)))
+colnames(cox_hr) <- c("Hazard Ratio", "Lower 95% CI", "Upper 95% CI")
+
+print("Hazard Ratios with 95% Confidence Intervals:")
+print(cox_hr)
+
+# proportional hazards assumption
+ph_test <- cox.zph(cox_treatment)
+print("\nProportional Hazards Assumption Test:")
+print(ph_test)
+
+plot(ph_test)
+```
+
+
+
+Adjusted Cox Proportional Hazards Model
+
+```{r}
+
+library(survival)
+
+# adjusted Cox model with all confounders
+cox_adjusted <- coxph(Surv(time, status) ~ rx + sex + age + obstruct + perfor + 
+                     adhere + nodes + differ + extent + surg + node4,
+                     data = colondeath)
+
+summary(cox_adjusted)
+
+# hazard ratios and confidence intervals
+cox_hr <- exp(cbind(coef(cox_adjusted), confint(cox_adjusted)))
+colnames(cox_hr) <- c("Hazard Ratio", "Lower 95% CI", "Upper 95% CI")
+
+print("Hazard Ratios with 95% Confidence Intervals:")
+print(cox_hr)
+
+# proportional hazards assumption
+ph_test <- cox.zph(cox_adjusted)
+print("\nProportional Hazards Assumption Test:")
+print(ph_test)
+
+library(forestplot)
+
+coef_names <- names(coef(cox_adjusted))
+
+hr_data <- data.frame(
+  Variable = coef_names,
+  HR = exp(coef(cox_adjusted)),
+  Lower = exp(confint(cox_adjusted))[,1],
+  Upper = exp(confint(cox_adjusted))[,2],
+  P = summary(cox_adjusted)$coefficients[,5]
+)
+
+# forest plot
+forestplot(
+  labeltext = hr_data$Variable,
+  mean = hr_data$HR,
+  lower = hr_data$Lower,
+  upper = hr_data$Upper,
+  title = "Adjusted Hazard Ratios with 95% CI",
+  xlab = "Hazard Ratio",
+  zero = 1,
+  boxsize = 0.2,
+  col = fpColors(box = "royalblue",
+                line = "darkblue",
+                summary = "royalblue")
+)
+
+# likelihood ratio test
+null_model <- coxph(Surv(time, status) ~ 1, data = colondeath)
+lr_test <- anova(null_model, cox_adjusted)
+print("\nLikelihood Ratio Test:")
+print(lr_test)
+
+conc <- concordance(cox_adjusted)
+print("\nConcordance Index:")
+print(conc)
+```
+
+Test proportional hazard assumptions
+
+```{r}
+
+library(survival)
+
+cox_adjusted <- coxph(Surv(time, status) ~ rx + sex + age + obstruct + perfor + 
+                     adhere + nodes + differ + extent + surg + node4,
+                     data = colondeath)
+
+# proportional hazards assumption
+ph_test <- cox.zph(cox_adjusted)
+print("Proportional Hazards Test Results:")
+print(ph_test)
+
+model_summary <- summary(cox_adjusted)
+
+results_table <- data.frame(
+  Variable = names(coef(cox_adjusted)),
+  Hazard_Ratio = round(exp(coef(cox_adjusted)), 3),
+  Lower_CI = round(exp(confint(cox_adjusted))[,1], 3),
+  Upper_CI = round(exp(confint(cox_adjusted))[,2], 3),
+  P_value = round(model_summary$coefficients[,5], 4)
+)
+
+results_table$CI_95 <- paste0("(", results_table$Lower_CI, " - ", results_table$Upper_CI, ")")
+
+# table
+final_table <- data.frame(
+  Variable = results_table$Variable,
+  HR = results_table$Hazard_Ratio,
+  CI_95 = results_table$CI_95,
+  P_value = results_table$P_value
+)
+
+print("\nCox Model Results:")
+print(final_table, row.names = FALSE)
+
+# Plot
+print("\nPlotting Schoenfeld residuals...")
+plot(ph_test)
+print("\nGlobal Test of Proportional Hazards Assumption:")
+print(ph_test$table["GLOBAL",])
+
+# residuals
+mart_resid <- residuals(cox_adjusted, type="martingale")
+dev_resid <- residuals(cox_adjusted, type="deviance")
+
+par(mfrow=c(2,2))
+
+# Plots
+plot(predict(cox_adjusted), mart_resid,
+     xlab="Linear Predictor",
+     ylab="Martingale Residuals",
+     main="Martingale Residuals vs. Linear Predictor")
+abline(h=0, col="red", lty=2)
+
+plot(predict(cox_adjusted), dev_resid,
+     xlab="Linear Predictor",
+     ylab="Deviance Residuals",
+     main="Deviance Residuals vs. Linear Predictor")
+abline(h=0, col="red", lty=2)
+
+par(mfrow=c(1,1))
+
+```
+
+Due to assumption violation, stratification by differ
+
+```{r}
+
+library(survival)
+library(survminer)
+
+# stratified Cox model with 'differ' 
+cox_stratified <- coxph(Surv(time, status) ~ rx + sex + age + obstruct + perfor + 
+                       adhere + nodes + extent + surg + node4 + strata(differ),
+                       data = colondeath)
+
+# Test PH assumption 
+ph_test_strat <- cox.zph(cox_stratified)
+print("Proportional Hazards Test Results (Stratified Model):")
+print(ph_test_strat)
+
+model_summary_strat <- summary(cox_stratified)
+results_table_strat <- data.frame(
+    Variable = names(coef(cox_stratified)),
+    Hazard_Ratio = round(exp(coef(cox_stratified)), 3),
+    Lower_CI = round(exp(confint(cox_stratified))[,1], 3),
+    Upper_CI = round(exp(confint(cox_stratified))[,2], 3),
+    P_value = round(model_summary_strat$coefficients[,5], 4)
+)
+
+# confidence intervals
+results_table_strat$CI_95 <- paste0("(", results_table_strat$Lower_CI, 
+                                   " - ", results_table_strat$Upper_CI, ")")
+
+final_table_strat <- data.frame(
+    Variable = results_table_strat$Variable,
+    HR = results_table_strat$Hazard_Ratio,
+    CI_95 = results_table_strat$CI_95,
+    P_value = results_table_strat$P_value
+)
+
+print("\nStratified Cox Model Results:")
+print(final_table_strat, row.names = FALSE)
+
+# plots
+par(mfrow=c(2,2))
+plot(ph_test_strat)
+mart_resid_strat <- residuals(cox_stratified, type="martingale")
+dev_resid_strat <- residuals(cox_stratified, type="deviance")
+
+plot(predict(cox_stratified), mart_resid_strat,
+     xlab="Linear Predictor",
+     ylab="Martingale Residuals",
+     main="Martingale Residuals (Stratified Model)")
+lines(lowess(predict(cox_stratified), mart_resid_strat), col="red")
+abline(h=0, lty=2)
+
+plot(predict(cox_stratified), dev_resid_strat,
+     xlab="Linear Predictor",
+     ylab="Deviance Residuals",
+     main="Deviance Residuals (Stratified Model)")
+lines(lowess(predict(cox_stratified), dev_resid_strat), col="red")
+abline(h=0, lty=2)
+
+par(mfrow=c(1,1))
+
+# survival curves
+ggsurvplot(
+    survfit(cox_stratified),
+    data = colondeath,
+    risk.table = TRUE,
+    ggtheme = theme_minimal(),
+    title = "Survival Curves by Differentiation Strata"
+)
+
+# AIC
+AIC_original <- AIC(cox_adjusted)
+AIC_stratified <- AIC(cox_stratified)
+
+print("\nModel Comparison (AIC):")
+print(data.frame(
+    Model = c("Original", "Stratified"),
+    AIC = c(AIC_original, AIC_stratified)
+))
+
+# likelihood ratio test 
+lrt <- anova(cox_adjusted, cox_stratified)
+print("\nLikelihood Ratio Test Results:")
+print(lrt)
+```
+
+Significantly improved but still has violation, can refine with obstruct.
+So, adjusted cox with obstruct and differ.
+
+```{r}
+
+library(survival)
+library(survminer)
+library(forestplot)
+
+# Fit model with 2 stratification
+cox_refined <- coxph(Surv(time, status) ~ rx + sex + age + perfor + 
+                    adhere + nodes + extent + surg + node4 +
+                    strata(differ, obstruct),
+                    data = colondeath)
+
+# PH assumption 
+ph_test_refined <- cox.zph(cox_refined)
+print("Proportional Hazards Test Results (Refined Model):")
+print(ph_test_refined)
+
+model_summary_refined <- summary(cox_refined)
+
+results_table_refined <- data.frame(
+    Variable = names(coef(cox_refined)),
+    Hazard_Ratio = round(exp(coef(cox_refined)), 3),
+    Lower_CI = round(exp(confint(cox_refined))[,1], 3),
+    Upper_CI = round(exp(confint(cox_refined))[,2], 3),
+    P_value = round(model_summary_refined$coefficients[,5], 4)
+)
+
+# confidence intervals
+results_table_refined$CI_95 <- paste0("(", results_table_refined$Lower_CI, 
+                                   " - ", results_table_refined$Upper_CI, ")")
+
+final_table_refined <- data.frame(
+    Variable = results_table_refined$Variable,
+    HR = results_table_refined$Hazard_Ratio,
+    CI_95 = results_table_refined$CI_95,
+    P_value = results_table_refined$P_value
+)
+
+print("\nRefined Cox Model Results:")
+print(final_table_refined, row.names = FALSE)
+
+par(mfrow=c(2,2))
+
+# Plots
+plot(ph_test_refined)
+
+mart_resid_refined <- residuals(cox_refined, type="martingale")
+dev_resid_refined <- residuals(cox_refined, type="deviance")
+
+plot(predict(cox_refined), mart_resid_refined,
+     xlab="Linear Predictor",
+     ylab="Martingale Residuals",
+     main="Martingale Residuals (Refined Model)")
+lines(lowess(predict(cox_refined), mart_resid_refined), col="red")
+abline(h=0, lty=2)
+
+plot(predict(cox_refined), dev_resid_refined,
+     xlab="Linear Predictor",
+     ylab="Deviance Residuals",
+     main="Deviance Residuals (Refined Model)")
+lines(lowess(predict(cox_refined), dev_resid_refined), col="red")
+abline(h=0, lty=2)
+
+par(mfrow=c(1,1))
+
+# AIC
+AIC_original <- AIC(cox_adjusted)
+AIC_stratified <- AIC(cox_stratified)
+AIC_refined <- AIC(cox_refined)
+
+print("\nModel Comparison (AIC):")
+print(data.frame(
+    Model = c("Original", "Stratified", "Refined"),
+    AIC = c(AIC_original, AIC_stratified, AIC_refined)
+))
+
+# likelihood ratio test 
+lrt <- anova(cox_adjusted, cox_stratified, cox_refined)
+print("\nLikelihood Ratio Test Results:")
+print(lrt)
+
+ggsurvplot(
+  survfit(cox_refined),
+  data = colondeath,
+  risk.table = TRUE,
+  conf.int = FALSE,
+  ggtheme = theme_minimal(),
+  title = "Survival Curves by Strata",
+  font.main = c(14, "bold"),
+  font.x = 12,
+  font.y = 12,
+  font.tickslab = 10,
+  risk.table.height = 0.25,
+  risk.table.fontsize = 2,    
+  risk.table.title = "Number at Risk",
+  risk.table.y.text = FALSE,
+  tables.theme = theme_classic()
+)
+
+```
+
+
+
+LASSO Penalized Regression
+
+
+```{r}
+library(glmnet)
+library(dplyr)
+library(survival)
+
+surv_obj_strata <- with(colondeath, 
+                        glmnet::stratifySurv(Surv(time, status),
+                                           strata = interaction(obstruct, differ)))
+
+# Scale continuous variables
+covs <- model.matrix(~ rx + age + sex + perfor + adhere + 
+                    nodes + extent + surg,
+                    data = colondeath)[,-1] %>%
+        as.data.frame() %>%
+        mutate_at(vars(age, nodes), scale) %>%
+        as.matrix()
+
+set.seed(123)
+
+# Fit LASSO model
+lasso_fit <- suppressWarnings(
+    cv.glmnet(x = covs,
+              y = surv_obj_strata,
+              family = "cox",
+              alpha = 1)
+)
+
+# Plot 
+plot(lasso_fit)
+title("Cross-validation Plot for LASSO")
+
+# minimum lambda and 1SE lambda
+coef_min <- coef(lasso_fit, s = "lambda.min")
+coef_1se <- coef(lasso_fit, s = "lambda.1se")
+
+format_coef <- function(coef_matrix) {
+    coef_df <- data.frame(
+        Variable = rownames(coef_matrix),
+        Coefficient = as.vector(coef_matrix)
+    ) %>%
+    filter(Coefficient != 0) %>%
+    arrange(desc(abs(Coefficient)))
+    
+    return(coef_df)
+}
+
+# Outputs
+print("Variables selected using minimum lambda:")
+print(format_coef(coef_min))
+print("\nVariables selected using lambda.1se (more conservative):")
+print(format_coef(coef_1se))
+print("\nOptimal lambda values:")
+print(paste("Minimum lambda:", round(lasso_fit$lambda.min, 4)))
+print(paste("Lambda 1SE:", round(lasso_fit$lambda.1se, 4)))
+
+# final Cox model with using lambda.1se
+selected_vars <- rownames(coef_1se)[which(coef_1se != 0)]
+selected_vars <- selected_vars[selected_vars != "(Intercept)"]
+formula_str <- paste("Surv(time, status) ~", 
+                    paste(selected_vars, collapse = " + "))
+final_cox <- coxph(as.formula(formula_str), data = colondeath)
+print("\nFinal Cox Model with LASSO-selected variables:")
+print(summary(final_cox))
+
+```
+
+
+Model Comparison and Final Model Selection
+
+```{r}
+
+library(survival)
+library(glmnet)
+library(dplyr)
+
+# all three models
+cox_unadj <- cox_treatment
+cox_full <- cox_refined
+cox_lasso <- final_cox  
+
+# comparison table
+model_comparison <- data.frame(
+    Model = c("Unadjusted", "Full", "LASSO"),
+    AIC = c(AIC(cox_unadj), AIC(cox_full), AIC(cox_lasso)),
+    BIC = c(BIC(cox_unadj), BIC(cox_full), BIC(cox_lasso)),
+    C_index = c(summary(cox_unadj)$concordance[1],
+                summary(cox_full)$concordance[1],
+                summary(cox_lasso)$concordance[1]),
+    Parameters = c(length(coef(cox_unadj)),
+                  length(coef(cox_full)),
+                  length(coef(cox_lasso))),
+    Events = c(cox_unadj$nevent, cox_full$nevent, cox_lasso$nevent),
+    Sample_size = c(cox_unadj$n, cox_full$n, cox_lasso$n)
+) %>%
+mutate(across(where(is.numeric), round, 3))
+
+# Likelihood ratio tests
+lr_tests <- list(
+    full_vs_unadj = anova(cox_unadj, cox_full),
+    lasso_vs_unadj = anova(cox_unadj, cox_lasso),
+    full_vs_lasso = anova(cox_lasso, cox_full)
+)
+
+# discrimination
+c_improvement <- data.frame(
+    Model = c("Full", "LASSO"),
+    Improvement = c(
+        (model_comparison$C_index[2] - model_comparison$C_index[1]) / 
+            (1 - model_comparison$C_index[1]) * 100,
+        (model_comparison$C_index[3] - model_comparison$C_index[1]) / 
+            (1 - model_comparison$C_index[1]) * 100
+    )
+) %>%
+mutate(Improvement = round(Improvement, 1))
+
+# results
+cat("\nModel Comparison Summary:\n")
+print(model_comparison)
+
+cat("\nRelative Improvement in Discrimination (% vs Unadjusted):\n")
+print(c_improvement)
+
+cat("\nLikelihood Ratio Tests:\n")
+cat("\nFull vs Unadjusted:\n")
+print(lr_tests$full_vs_unadj)
+cat("\nLASSO vs Unadjusted:\n")
+print(lr_tests$lasso_vs_unadj)
+cat("\nFull vs LASSO:\n")
+print(lr_tests$full_vs_lasso)
+cat("\nModel Selection Summary:\n")
+best_model <- data.frame(
+    Criterion = c("AIC", "BIC", "C-index"),
+    Best_Model = c(
+        model_comparison$Model[which.min(model_comparison$AIC)],
+        model_comparison$Model[which.min(model_comparison$BIC)],
+        model_comparison$Model[which.max(model_comparison$C_index)]
+    )
+)
+print(best_model)
+```
+
+
+
