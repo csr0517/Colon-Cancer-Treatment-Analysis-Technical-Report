@@ -52,9 +52,10 @@ Findings align with original paper's conclusions:
 - Main difference in statistical methodology (modern approaches used)
 
 ## Files
+- Quick View: Statistical Analysis Plan for Replication
+- Original paper: moertel-et-al-2000-fluorouracil-plus-levamisole-as-effective-adjuvant-therapy-after-resection-of-stage-iii-colon.pdf
 - Technical Report (PDF)
 - R code: colon.Rmd
-- Original paper: moertel-et-al-2000-fluorouracil-plus-levamisole-as-effective-adjuvant-therapy-after-resection-of-stage-iii-colon.pdf
 
 ## Dependencies
 - R statistical software
